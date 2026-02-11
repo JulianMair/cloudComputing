@@ -14,7 +14,7 @@ resource "aws_ecs_task_definition" "app" {
   container_definitions = jsonencode([
     {
       name  = "partyqueue"
-      image = "833516483408.dkr.ecr.eu-central-1.amazonaws.com/partyqueue:latest"
+      image = "julianmair/partyqueue:latest"
       portMappings = [
         {
           containerPort = 3000
@@ -53,7 +53,6 @@ resource "aws_ecs_service" "app" {
   }
 
   depends_on = [
-    aws_lb_listener.http,
-    aws_lb_listener.https
+    aws_lb_listener.http
   ]
 }
