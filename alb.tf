@@ -13,7 +13,6 @@ resource "aws_lb_target_group" "tg" {
   vpc_id      = aws_vpc.main.id
   target_type = "ip"
 }
-
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.alb.arn
   port              = 80

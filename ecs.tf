@@ -51,8 +51,4 @@ resource "aws_ecs_service" "app" {
     container_name   = "partyqueue"
     container_port   = 3000
   }
-
-  depends_on = [
-    aws_lb_listener.http
-  ]
 }

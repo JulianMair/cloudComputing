@@ -1,7 +1,6 @@
 # CloudFront Distribution
 resource "aws_cloudfront_distribution" "partyqueue" {
   enabled             = true
-  #default_root_object = "index.html"
 
   origin {
     domain_name = aws_lb.alb.dns_name
