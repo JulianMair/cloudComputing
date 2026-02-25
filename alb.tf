@@ -1,5 +1,5 @@
 resource "aws_lb" "alb" {
-  name               = "partyqueue-alb"
+  name               = var.alb_name
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
@@ -7,15 +7,16 @@ resource "aws_lb" "alb" {
 }
 
 resource "aws_lb_target_group" "tg" {
-  name        = "partyqueue-tg"
-  port        = 3000
+  name        = var.target_group_name
+  port        = var.app_port
   protocol    = "HTTP"
   vpc_id      = aws_vpc.main.id
   target_type = "ip"
 }
+
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.alb.arn
-  port              = 80
+  port              = var.alb_listener_port
   protocol          = "HTTP"
 
   default_action {

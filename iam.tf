@@ -1,5 +1,5 @@
 resource "aws_iam_role" "ecs_execution_role" {
-  name = "ecs_execution_role"
+  name = var.ecs_execution_role_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -10,7 +10,7 @@ resource "aws_iam_role" "ecs_execution_role" {
           Service = "ecs-tasks.amazonaws.com"
         }
         Effect = "Allow"
-        Sid = ""
+        Sid    = ""
       }
     ]
   })

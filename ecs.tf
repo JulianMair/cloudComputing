@@ -1,31 +1,31 @@
 resource "aws_ecs_cluster" "main" {
-  name = "partyqueue-cluster"
+  name = var.ecs_cluster_name
 }
 
 resource "aws_ecs_task_definition" "app" {
-  family                   = "partyqueue"
+  family                   = var.ecs_task_family
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = "256"
-  memory                   = "512"
+  cpu                      = var.ecs_task_cpu
+  memory                   = var.ecs_task_memory
 
   execution_role_arn = aws_iam_role.ecs_execution_role.arn
 
   container_definitions = jsonencode([
     {
-      name  = "partyqueue"
-      image = "julianmair/partyqueue:latest"
+      name  = var.container_name
+      image = var.container_image
       portMappings = [
         {
-          containerPort = 3000
-          hostPort      = 3000
+          containerPort = var.app_port
+          hostPort      = var.app_port
         }
       ]
       logConfiguration = {
         logDriver = "awslogs"
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.partyqueue.name
-          "awslogs-region"        = "eu-central-1"
+          "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "ecs"
         }
       }
@@ -34,10 +34,10 @@ resource "aws_ecs_task_definition" "app" {
 }
 
 resource "aws_ecs_service" "app" {
-  name            = "partyqueue-service"
+  name            = var.ecs_service_name
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
-  desired_count   = 1
+  desired_count   = var.ecs_desired_count
   launch_type     = "FARGATE"
 
   network_configuration {
@@ -48,7 +48,7 @@ resource "aws_ecs_service" "app" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.tg.arn
-    container_name   = "partyqueue"
-    container_port   = 3000
+    container_name   = var.container_name
+    container_port   = var.app_port
   }
 }

@@ -8,7 +8,6 @@ output "cloudfront_domain" {
   value       = aws_cloudfront_distribution.partyqueue.domain_name
 }
 
-
 output "ecs_cluster_name" {
   value = aws_ecs_cluster.main.name
 }

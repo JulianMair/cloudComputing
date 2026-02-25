@@ -1,54 +1,215 @@
-#########################
-# ECR Repository
-#########################
-resource "aws_ecr_repository" "partyqueue" {
-  name                 = "partyqueue"
-  image_tag_mutability = "MUTABLE"
+terraform {
+  required_version = ">= 1.5.0"
 
-  image_scanning_configuration {
-    scan_on_push = true
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
   }
 }
-
-#########################
-# IAM Role for ECS Task Execution
-#########################
-resource "aws_iam_role" "ecs_execution_role" {
-  name = "ecs_execution_role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-        Effect = "Allow"
-        Sid = ""
-      }
-    ]
-  })
+provider "aws" {
+  region = var.aws_region
+}
+variable "aws_region" {
+  description = "AWS region for all resources"
+  type        = string
+  default     = "eu-central-1"
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
-  role       = aws_iam_role.ecs_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+variable "vpc_cidr" {
+  description = "CIDR block for the VPC"
+  type        = string
+  default     = "10.0.0.0/16"
 }
 
-#########################
-# CloudWatch Log Group
-#########################
-resource "aws_cloudwatch_log_group" "partyqueue" {
-  name              = "/ecs/partyqueue"
-  retention_in_days = 7
+variable "public_subnet_a_cidr" {
+  description = "CIDR block for public subnet A"
+  type        = string
+  default     = "10.0.1.0/24"
 }
 
-#########################
-# VPC, Subnets, Internet Gateway, Route Tables
-#########################
+variable "public_subnet_b_cidr" {
+  description = "CIDR block for public subnet B"
+  type        = string
+  default     = "10.0.2.0/24"
+}
+
+variable "public_subnet_a_az" {
+  description = "Availability zone for public subnet A"
+  type        = string
+  default     = "eu-central-1a"
+}
+
+variable "public_subnet_b_az" {
+  description = "Availability zone for public subnet B"
+  type        = string
+  default     = "eu-central-1b"
+}
+
+variable "public_ingress_cidr_blocks" {
+  description = "Allowed CIDR blocks for public ingress"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
+variable "alb_security_group_name" {
+  description = "Security group name for the ALB"
+  type        = string
+  default     = "partyqueue-alb-sg"
+}
+
+variable "ecs_security_group_name" {
+  description = "Security group name for ECS tasks"
+  type        = string
+  default     = "partyqueue-ecs-sg"
+}
+
+variable "alb_name" {
+  description = "Application Load Balancer name"
+  type        = string
+  default     = "partyqueue-alb"
+}
+
+variable "target_group_name" {
+  description = "ALB target group name"
+  type        = string
+  default     = "partyqueue-tg"
+}
+
+variable "alb_listener_port" {
+  description = "ALB listener port"
+  type        = number
+  default     = 80
+}
+
+variable "app_port" {
+  description = "Application container and target group port"
+  type        = number
+  default     = 3000
+}
+
+variable "ecs_cluster_name" {
+  description = "ECS cluster name"
+  type        = string
+  default     = "partyqueue-cluster"
+}
+
+variable "ecs_task_family" {
+  description = "ECS task definition family"
+  type        = string
+  default     = "partyqueue"
+}
+
+variable "container_name" {
+  description = "Container name used in ECS task/service"
+  type        = string
+  default     = "partyqueue"
+}
+
+variable "container_image" {
+  description = "Container image for the application"
+  type        = string
+  default     = "julianmair/partyqueue:latest"
+}
+
+variable "ecs_task_cpu" {
+  description = "CPU units for the ECS task definition"
+  type        = string
+  default     = "256"
+}
+
+variable "ecs_task_memory" {
+  description = "Memory (MiB) for the ECS task definition"
+  type        = string
+  default     = "512"
+}
+
+variable "ecs_service_name" {
+  description = "ECS service name"
+  type        = string
+  default     = "partyqueue-service"
+}
+
+variable "ecs_desired_count" {
+  description = "Desired number of ECS tasks"
+  type        = number
+  default     = 1
+}
+
+variable "ecs_autoscaling_min_capacity" {
+  description = "Minimum ECS service autoscaling capacity"
+  type        = number
+  default     = 1
+}
+
+variable "ecs_autoscaling_max_capacity" {
+  description = "Maximum ECS service autoscaling capacity"
+  type        = number
+  default     = 2
+}
+
+variable "ecs_cpu_target_value" {
+  description = "CPU utilization target for ECS autoscaling"
+  type        = number
+  default     = 70
+}
+
+variable "ecs_scale_in_cooldown" {
+  description = "Scale-in cooldown for ECS autoscaling policy"
+  type        = number
+  default     = 60
+}
+
+variable "ecs_scale_out_cooldown" {
+  description = "Scale-out cooldown for ECS autoscaling policy"
+  type        = number
+  default     = 60
+}
+
+variable "ecs_execution_role_name" {
+  description = "IAM role name for ECS task execution"
+  type        = string
+  default     = "ecs_execution_role"
+}
+
+variable "cloudwatch_log_group_name" {
+  description = "CloudWatch log group name for ECS logs"
+  type        = string
+  default     = "/ecs/partyqueue"
+}
+
+variable "cloudwatch_log_retention_days" {
+  description = "CloudWatch log retention in days"
+  type        = number
+  default     = 7
+}
+
+variable "cloudfront_origin_id" {
+  description = "Origin ID used by CloudFront"
+  type        = string
+  default     = "ALB-partyqueue"
+}
+
+variable "cloudfront_default_ttl" {
+  description = "Default TTL for CloudFront cache behavior"
+  type        = number
+  default     = 300
+}
+
+variable "cloudfront_max_ttl" {
+  description = "Maximum TTL for CloudFront cache behavior"
+  type        = number
+  default     = 600
+}
+
+variable "cloudfront_tag_name" {
+  description = "Name tag for the CloudFront distribution"
+  type        = string
+  default     = "partyqueue-cloudfront"
+}
 resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
 }
@@ -59,15 +220,15 @@ resource "aws_internet_gateway" "igw" {
 
 resource "aws_subnet" "public_a" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "eu-central-1a"
+  cidr_block              = var.public_subnet_a_cidr
+  availability_zone       = var.public_subnet_a_az
   map_public_ip_on_launch = true
 }
 
 resource "aws_subnet" "public_b" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.2.0/24"
-  availability_zone       = "eu-central-1b"
+  cidr_block              = var.public_subnet_b_cidr
+  availability_zone       = var.public_subnet_b_az
   map_public_ip_on_launch = true
 }
 
@@ -89,41 +250,40 @@ resource "aws_route_table_association" "b" {
   subnet_id      = aws_subnet.public_b.id
   route_table_id = aws_route_table.public.id
 }
-
-#########################
-# Security Groups
-#########################
+data "aws_ec2_managed_prefix_list" "cloudfront_origin_facing" {
+  name = "com.amazonaws.global.cloudfront.origin-facing"
+}
 
 # ALB Security Group
 resource "aws_security_group" "alb" {
-  name        = "partyqueue-alb-sg"
-  description = "Allow HTTP from internet"
+  name        = var.alb_security_group_name
+  description = "Allow HTTP only from CloudFront"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port       = var.alb_listener_port
+    to_port         = var.alb_listener_port
+    protocol        = "tcp"
+    prefix_list_ids = [data.aws_ec2_managed_prefix_list.cloudfront_origin_facing.id]
   }
 
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.public_ingress_cidr_blocks
   }
 }
 
 # ECS Security Group
 resource "aws_security_group" "ecs" {
-  name        = "partyqueue-ecs-sg"
+  name        = var.ecs_security_group_name
   description = "Allow ALB to access ECS containers"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    from_port       = 3000
-    to_port         = 3000
+    from_port       = var.app_port
+    to_port         = var.app_port
     protocol        = "tcp"
     security_groups = [aws_security_group.alb.id]
   }
@@ -132,56 +292,11 @@ resource "aws_security_group" "ecs" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.public_ingress_cidr_blocks
   }
 }
-
-#########################
-# ECS Cluster
-#########################
-resource "aws_ecs_cluster" "main" {
-  name = "partyqueue-cluster"
-}
-
-#########################
-# ECS Task Definition
-#########################
-resource "aws_ecs_task_definition" "app" {
-  family                   = "partyqueue"
-  requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = "256"
-  memory                   = "512"
-
-  execution_role_arn = aws_iam_role.ecs_execution_role.arn
-
-  container_definitions = jsonencode([
-    {
-      name  = "partyqueue"
-      image = "833516483408.dkr.ecr.eu-central-1.amazonaws.com/partyqueue:latest"
-      portMappings = [
-        {
-          containerPort = 3000
-          hostPort      = 3000
-        }
-      ]
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.partyqueue.name
-          "awslogs-region"        = "eu-central-1"
-          "awslogs-stream-prefix" = "ecs"
-        }
-      }
-    }
-  ])
-}
-
-#########################
-# ALB + Target Group + Listener
-#########################
 resource "aws_lb" "alb" {
-  name               = "partyqueue-alb"
+  name               = var.alb_name
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
@@ -189,8 +304,8 @@ resource "aws_lb" "alb" {
 }
 
 resource "aws_lb_target_group" "tg" {
-  name        = "partyqueue-tg"
-  port        = 3000
+  name        = var.target_group_name
+  port        = var.app_port
   protocol    = "HTTP"
   vpc_id      = aws_vpc.main.id
   target_type = "ip"
@@ -198,7 +313,7 @@ resource "aws_lb_target_group" "tg" {
 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.alb.arn
-  port              = 80
+  port              = var.alb_listener_port
   protocol          = "HTTP"
 
   default_action {
@@ -206,15 +321,72 @@ resource "aws_lb_listener" "http" {
     target_group_arn = aws_lb_target_group.tg.arn
   }
 }
+resource "aws_iam_role" "ecs_execution_role" {
+  name = var.ecs_execution_role_name
 
-#########################
-# ECS Service
-#########################
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+        Effect = "Allow"
+        Sid    = ""
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
+  role       = aws_iam_role.ecs_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+resource "aws_cloudwatch_log_group" "partyqueue" {
+  name              = var.cloudwatch_log_group_name
+  retention_in_days = var.cloudwatch_log_retention_days
+}
+resource "aws_ecs_cluster" "main" {
+  name = var.ecs_cluster_name
+}
+
+resource "aws_ecs_task_definition" "app" {
+  family                   = var.ecs_task_family
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = var.ecs_task_cpu
+  memory                   = var.ecs_task_memory
+
+  execution_role_arn = aws_iam_role.ecs_execution_role.arn
+
+  container_definitions = jsonencode([
+    {
+      name  = var.container_name
+      image = var.container_image
+      portMappings = [
+        {
+          containerPort = var.app_port
+          hostPort      = var.app_port
+        }
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.partyqueue.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
+    }
+  ])
+}
+
 resource "aws_ecs_service" "app" {
-  name            = "partyqueue-service"
+  name            = var.ecs_service_name
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
-  desired_count   = 1
+  desired_count   = var.ecs_desired_count
   launch_type     = "FARGATE"
 
   network_configuration {
@@ -225,19 +397,13 @@ resource "aws_ecs_service" "app" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.tg.arn
-    container_name   = "partyqueue"
-    container_port   = 3000
+    container_name   = var.container_name
+    container_port   = var.app_port
   }
-
-  depends_on = [aws_lb_listener.http]
 }
-
-#########################
-# ECS Auto Scaling (optional)
-#########################
 resource "aws_appautoscaling_target" "ecs" {
-  max_capacity       = 2
-  min_capacity       = 1
+  max_capacity       = var.ecs_autoscaling_max_capacity
+  min_capacity       = var.ecs_autoscaling_min_capacity
   resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.app.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
@@ -254,8 +420,74 @@ resource "aws_appautoscaling_policy" "cpu_scale_up" {
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
-    target_value       = 5.0
-    scale_in_cooldown  = 60
-    scale_out_cooldown = 60
+    target_value       = var.ecs_cpu_target_value
+    scale_in_cooldown  = var.ecs_scale_in_cooldown
+    scale_out_cooldown = var.ecs_scale_out_cooldown
   }
+}
+# CloudFront Distribution
+resource "aws_cloudfront_distribution" "partyqueue" {
+  enabled = true
+
+  origin {
+    domain_name = aws_lb.alb.dns_name
+    origin_id   = var.cloudfront_origin_id
+
+    custom_origin_config {
+      http_port              = var.alb_listener_port
+      https_port             = 443
+      origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  default_cache_behavior {
+    target_origin_id       = var.cloudfront_origin_id
+    viewer_protocol_policy = "redirect-to-https"
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    cached_methods  = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "all"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = var.cloudfront_default_ttl
+    max_ttl     = var.cloudfront_max_ttl
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  tags = {
+    Name = var.cloudfront_tag_name
+  }
+}
+output "alb_dns" {
+  value       = aws_lb.alb.dns_name
+  description = "Public DNS of the ALB"
+}
+
+output "cloudfront_domain" {
+  description = "CloudFront Domain for PartyQueue"
+  value       = aws_cloudfront_distribution.partyqueue.domain_name
+}
+
+output "ecs_cluster_name" {
+  value = aws_ecs_cluster.main.name
+}
+
+output "ecs_service_name" {
+  value = aws_ecs_service.app.name
 }
